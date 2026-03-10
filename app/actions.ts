@@ -1,16 +1,18 @@
 'use server'
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export async function askGemini(prompt: string) {
+// Nhận vào mảng lịch sử thay vì 1 câu prompt để AI không bị "mất trí nhớ"
+export async function askGemini(history: { role: string; content: string }[]) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return "Lỗi: Kiểm tra file .env.local nhé!";
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Dùng model 2.5 Flash để ổn định nhất cho bản Free
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    const systemInstruction = `Bạn là Sunna AI - Chuyên gia tư vấn lộ trình học tập cá nhân hóa cho học sinh. 
+    
+    // Dùng model 2.5 Flash theo chuẩn ý ông giáo!
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      systemInstruction: `Bạn là Sunna AI - Chuyên gia tư vấn lộ trình học tập cá nhân hóa cho học sinh. 
 Khi trả lời, bạn PHẢI tuân thủ cấu trúc sau:
 
 ## 🎯 Mục tiêu tổng quát
@@ -41,11 +43,22 @@ Khi trả lời, bạn PHẢI tuân thủ cấu trúc sau:
 ## 💡 Gợi ý thêm & Thảo luận
 (Đưa ra 2-3 câu hỏi gợi mở để người dùng bổ sung ý tưởng hoặc đào sâu thêm vấn đề).
 
-Phong cách: Thân thiện, sử dụng icon (✨, 📚, ✅). Nếu người dùng nhắn thêm ý, hãy cập nhật lộ trình dựa trên ý đó.`;
+Phong cách: Thân thiện, sử dụng icon (✨, 📚, ✅). Nếu người dùng nhắn thêm ý, hãy cập nhật lộ trình dựa trên ý đó.` 
+    });
 
-    const result = await model.generateContent(systemInstruction + "\n\nYêu cầu: " + prompt);
+    // Xử lý logic để AI nhớ tin nhắn cũ
+    if (!history || history.length === 0) return "";
+    const lastMessage = history[history.length - 1].content;
+    const chatHistory = history.slice(0, -1).map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
+    const chat = model.startChat({ history: chatHistory });
+    const result = await chat.sendMessage(lastMessage);
+    
     return result.response.text();
   } catch (error) {
-    return "Lỗi kết nối!";
+    return "Lỗi kết nối hoặc AI đang quá tải, ông giáo thử lại nhé!";
   }
 }
