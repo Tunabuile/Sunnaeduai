@@ -50,38 +50,40 @@ export default function Home() {
         </h1>
       </div>
 
-      {/* KHU VỰC CHAT (Kéo lên xem tin nhắn cũ ở đây) */}
-      <div className="w-full max-w-2xl space-y-6 mb-8 overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar">
-        {messages.map((msg, index) => (
-          <div 
-            key={index} 
-            className={`w-full bg-white rounded-[32px] p-6 border-l-[6px] shadow-[0_10px_40px_rgba(0,0,0,0.04)] animate-in fade-in slide-in-from-bottom-2 duration-500 ${
-              msg.role === 'user' ? 'border-blue-400' : 'border-orange-500'
-            }`}
+      {/* KHU VỰC CHAT - Đã phân bên Trái/Phải */}
+<div className="flex-1 w-full max-w-3xl overflow-y-auto px-4 py-8 space-y-8 custom-scrollbar">
+  {messages.map((msg, index) => (
+    <div 
+      key={index} 
+      className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start animate-in fade-in slide-in-from-bottom-4 duration-700'}`}
+    >
+      <div 
+        className={`max-w-[85%] rounded-[32px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-gray-100 ${
+          msg.role === 'user' 
+            ? 'bg-blue-500 text-white rounded-tr-none border-l-0' // Tin nhắn của ông bên PHẢI
+            : 'bg-white text-slate-700 rounded-tl-none border-l-[6px] border-l-orange-500' // AI bên TRÁI
+        }`}
+      >
+        <h2 className={`text-sm font-bold mb-3 uppercase tracking-widest ${msg.role === 'user' ? 'text-blue-100' : 'text-orange-600'}`}>
+           {msg.role === 'user' ? '✨ Bạn' : '☀️ Sunna AI'}
+        </h2>
+        
+        <div className={`prose max-w-none leading-relaxed text-[17px] ${msg.role === 'user' ? 'prose-invert text-white' : 'prose-slate text-slate-700'}`}>
+          <ReactMarkdown 
+            components={{
+              a: ({node, ...props}) => (
+                <a {...props} target="_blank" rel="noopener noreferrer" className={`${msg.role === 'user' ? 'text-white underline' : 'text-blue-600 underline font-bold hover:text-blue-800'}`} />
+              ),
+            }}
           >
-            <h2 className={`text-lg font-bold mb-3 flex items-center gap-2 ${
-              msg.role === 'user' ? 'text-blue-600' : 'text-orange-600'
-            }`}>
-               <span>{msg.role === 'user' ? '👤 Bạn:' : '📋 Lộ trình của bạn:'}</span>
-            </h2>
-            
-            <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-[16px]">
-              <ReactMarkdown 
-                components={{
-                  a: ({node, ...props}) => (
-                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold hover:text-blue-800 transition-colors" />
-                  ),
-                  strong: ({node, ...props}) => <strong {...props} className="text-slate-900 font-bold" />
-                }}
-              >
-                {msg.content}
-              </ReactMarkdown>
-            </div>
-          </div>
-        ))}
-        {/* Điểm neo để tự động cuộn xuống */}
-        <div ref={messagesEndRef} />
+            {msg.content}
+          </ReactMarkdown>
+        </div>
       </div>
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
+</div>
 
       {/* GIỮ NGUYÊN KHUNG NHẬP LIỆU ĐỔ BÓNG MỊN */}
       <div className="w-full max-w-2xl bg-white rounded-[32px] shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-gray-100 p-8 sticky bottom-10">
