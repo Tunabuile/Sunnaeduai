@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Tạo khoảng cách dòng cho văn bản */
+p, li {
+  line-height: 1.8; /* Tăng độ cao của dòng */
+  margin-bottom: 15px; /* Tạo khoảng cách giữa các đoạn */
+}
+
+/* Tạo khoảng cách cho các tiêu đề */
+h2, h3 {
+  margin-top: 25px;
+  margin-bottom: 15px;
+}

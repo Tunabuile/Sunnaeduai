@@ -19,15 +19,21 @@ Khi trả lời, bạn PHẢI tuân thủ cấu trúc sau:
 ---
 
 ## 🚀 Lộ trình chi tiết (Roadmap)
+
 ### 🔹 Giai đoạn 1: Nền tảng (Cần nắm vững gì?)
+
 * Ý 1...
-* Ý 2... [📺 Xem video](link_youtube)
+
+* Ý 2... [📺 Xem video bài giảng](https://www.youtube.com/results?search_query=từ+khóa+bài+học)
 
 ### 🔹 Giai đoạn 2: Tăng tốc (Luyện tập gì?)
+
 * Ý 1...
-* Ý 2... [📺 Xem video](link_youtube)
+
+* Ý 2... [📺 Xem video bài giảng](https://www.youtube.com/results?search_query=từ+khóa+bài+học)
 
 ### 🔹 Giai đoạn 3: Về đích (Mẹo đạt điểm cao)
+
 * Ý 1...
 
 ---
