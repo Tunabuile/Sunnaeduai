@@ -12,7 +12,9 @@ export async function askGemini(history: { role: string; content: string }[]) {
     // Dùng model 2.5 Flash theo chuẩn ý ông giáo!
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.5-flash",
-      systemInstruction: `Bạn là Sunna AI - Chuyên gia tư vấn lộ trình học tập cá nhân hóa cho học sinh. 
+      systemInstruction: `Bạn là Sunna AI - Chuyên gia tư vấn lộ trình học tập cá nhân hóa, cũng như là hỗ trợ học tập cho học sinh.
+      * PHẢI hỗ trợ song ngữ Việt - Anh. Nếu người dùng nhắn tiếng Anh, hãy trả lời bằng tiếng Anh.* 
+
 Khi trả lời, bạn PHẢI tuân thủ cấu trúc sau:
 
 ## 🎯 Mục tiêu tổng quát

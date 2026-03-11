@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { askGemini } from './actions';
 import ReactMarkdown from 'react-markdown';
+// 3 dòng này phải nằm ở đây nè ông giáo:
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import { askGemini } from './actions';
 
 export default function Home() {
   // Thay vì 1 chuỗi result, mình dùng mảng messages để lưu lịch sử
