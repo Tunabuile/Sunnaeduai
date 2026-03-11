@@ -7,10 +7,23 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { askGemini } from './actions';
+import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Image as ImageIcon, X } from 'lucide-react';
 
 export default function Home() {
   // Thay vì 1 chuỗi result, mình dùng mảng messages để lưu lịch sử
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  const [image, setImage] = useState<string | null>(null); // State lưu ảnh Base64
+const fileInputRef = useRef<HTMLInputElement>(null);    // Ref để kích hoạt nút chọn file
+
+// Thêm hàm xử lý khi ông giáo chọn ảnh từ máy tính
+const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = () => setImage(reader.result as string);
+    reader.readAsDataURL(file);
+  }
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -23,9 +36,26 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  
+const handleSend = async () => {
+  if (!input.trim() && !image) return;
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const userMsg = { role: 'user', content: input };
+  setMessages((prev) => [...prev, userMsg]);
+  setInput('');
+  setLoading(true);
+
+  try {
+    // Gửi cả lịch sử tin nhắn và ảnh cho AI
+    const response = await askGemini(messages, image || undefined);
+    setMessages((prev) => [...prev, { role: 'assistant', content: response }]);
+  } catch (error) {
+    console.error("Lỗi gửi tin nhắn:", error);
+  } finally {
+    setImage(null);
+    setLoading(false);
+  }
+};
     
     const userMsg = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMsg]); // Hiện tin nhắn của ông lên trước
@@ -79,7 +109,7 @@ export default function Home() {
 </div>
 
       {/* GIỮ NGUYÊN KHUNG NHẬP LIỆU ĐỔ BÓNG MỊN */}
-      <div className="w-full max-w-2xl bg-white rounded-[32px] shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-gray-100 p-8 sticky bottom-10">
+      <div className="w-full max-w-2xl bg-white rounded-[32px] shadow-[0_10px_40px_rgba(0,0,0,0.04)] border p-4 flex items-end gap-2">
         <textarea
           className="w-full text-xl text-gray-700 placeholder-gray-400 border-none focus:ring-0 outline-none resize-none bg-transparent"
           placeholder="Bạn đang gặp khó khăn gì?..."
@@ -89,15 +119,19 @@ export default function Home() {
           onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
         />
         
-        <button
-          onClick={handleSend}
-          disabled={loading}
-          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          ) : 'Thiết kế lộ trình ngay ✨'}
-        </button>
+        <button 
+  onClick={handleSend}
+  disabled={loading || (!input.trim() && !image)}
+  className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600 transition-all disabled:bg-gray-200"
+>
+  {loading ? (
+    // Vòng xoay khi đang load
+    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  ) : (
+    // Cái mũi tên nằm ở đây nè!
+    <ArrowUp size={24} strokeWidth={3} /> 
+  )}
+</button>
       </div>
     </main>
   );
