@@ -83,7 +83,7 @@ export default function Home() {
       <div className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-400 mt-20">
-            <p className="text-lg italic">Chào ông giáo! Nay mình học gì nhỉ? 📚</p>
+            <p className="text-lg italic">Chào bạn.</p>
           </div>
         )}
         {messages.map((msg, index) => (
