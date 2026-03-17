@@ -44,8 +44,11 @@ export default function Home() {
     if (loading) return;
 
     const userMsg = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMsg]);
-    const currentInput = input; // Giữ lại input để gửi
+    // LƯU Ý: Phải tạo mảng tin nhắn mới để truyền vào askGemini, 
+    // vì state messages chưa cập nhật ngay lập tức do tính chất bất đồng bộ của setMessages.
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    
     const currentImage = image; // Giữ lại ảnh để gửi
     
     setInput('');
@@ -53,11 +56,14 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Gửi lịch sử chat và ảnh cho Gemini
-      const response = await askGemini(messages, currentImage || undefined);
+      // Gửi lịch sử chat mới nhất và ảnh cho Gemini
+      console.log("🚀 [Frontend] Đang gửi dữ liệu đến API:", newMessages); // Debug log
+      const response = await askGemini(newMessages, currentImage || undefined);
+      console.log("✅ [Frontend] Kết quả trả về từ API:", response); // Debug log
+      
       setMessages((prev) => [...prev, { role: 'assistant', content: response }]);
     } catch (error) {
-      console.error("Lỗi gửi tin nhắn:", error);
+      console.error("❌ [Frontend] Lỗi khi gọi API:", error); // Debug log
       setMessages((prev) => [...prev, { role: 'assistant', content: "Có lỗi xảy ra rồi ông giáo ơi, thử lại nhé!" }]);
     } finally {
       setLoading(false);
