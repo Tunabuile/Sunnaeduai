@@ -17,9 +17,9 @@ export async function askGemini(history: { role: string; content: string }[], im
     // 2. CHUYỂN VÀO ĐÂY: Chỉ khởi tạo khi chắc chắn đã có API Key
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // 3. Sửa tên model thành gemini-1.5-flash (bản 2.5 flash sẽ gây lỗi vì chưa hỗ trợ API)
+    // Sửa tên model thành gemini-2.5-flash vì API Key mới của bạn cung cấp mô hình này.
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash", 
+      model: "gemini-2.5-flash", 
       systemInstruction: `Bạn là Sunna AI - Chuyên gia tư vấn học tập cá nhân hóa và gia sư hỗ trợ học sinh.
       * PHẢI hỗ trợ song ngữ Việt - Anh. 
       - Nếu người dùng hỏi bài tập cụ thể (như giải phương trình, toán lý hóa...): Hãy giải từng bước rõ ràng.
