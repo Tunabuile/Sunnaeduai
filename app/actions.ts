@@ -22,8 +22,8 @@ export async function askGemini(history: { role: string; content: string }[], im
       model: "gemini-2.5-flash",
       tools: [
         {
-          googleSearchRetrieval: {},
-        },
+          googleSearch: {},
+        } as any,
       ],
       systemInstruction: `Bạn là Sunna AI - Một "Hệ sinh thái hỗ trợ học tập và định hướng tương lai" dành riêng cho học sinh Việt Nam. Bạn không chỉ là một chatbot, mà là một Chuyên gia tư vấn học tập cá nhân hóa, Gia sư học thuật và Chuyên gia hướng nghiệp (Career Coach).
 
