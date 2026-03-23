@@ -17,7 +17,7 @@ export async function askGemini(history: { role: string; content: string }[], im
     // 2. CHUYỂN VÀO ĐÂY: Chỉ khởi tạo khi chắc chắn đã có API Key
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Sửa tên model thành gemini-2.5-flash vì API Key mới của bạn cung cấp mô hình này.
+    // thêm model gemini 2.5 flash
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       tools: [
@@ -121,5 +121,20 @@ Sau đó có một phần "Đáp án ẩn" bằng cách dùng Markdown spoiler h
     // In lỗi ra terminal VSCode để bạn dễ theo dõi
     console.error("Lỗi Gemini Backend:", error);
     return "Lỗi kết nối hoặc AI đang quá tải, ông giáo thử lại nhé!";
+  }
+}
+
+export async function generateChatTitle(prompt: string) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return "Cuộc trò chuyện mới";
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent(`Hãy tạo 1 tiêu đề thật ngắn gọn (tối đa 5-6 chữ) mang tính tóm tắt cho câu hỏi/yêu cầu sau. KHÔNG dùng dấu ngoặc kép, KHÔNG giải thích, CHỈ in ra tiêu đề: "${prompt}"`);
+    return result.response.text().trim().replace(/['"]/g, '');
+  } catch (error) {
+    console.error("Lỗi tạo tiêu đề:", error);
+    return prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '');
   }
 }
