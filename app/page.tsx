@@ -25,8 +25,10 @@ interface ChatSession {
 }
 
 function ChatContent() {
-  const { isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
+
+  if (!isLoaded) return null;
   const searchParams = useSearchParams();
   const router = useRouter();
   const roomId = searchParams.get('room');
