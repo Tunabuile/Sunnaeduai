@@ -47,6 +47,9 @@ export default function Home() {
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editingRoomName, setEditingRoomName] = useState('');
 
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingChatTitle, setEditingChatTitle] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -210,15 +213,48 @@ export default function Home() {
   // Xóa một cuộc trò chuyện
   const handleDeleteChat = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const updatedChats = chatHistory.filter(c => c.id !== id);
-    setChatHistory(updatedChats);
-    localStorage.setItem('sunna_chats', JSON.stringify(updatedChats)); // Lưu ngay lập tức để tránh lỗi đồng bộ
-    
-    if (activeChatId === id) {
-      handleNewChat();
+    const isConfirm = window.confirm("Bạn có chắc chắn muốn xóa hội thoại này không?");
+    if (isConfirm) {
+      setChatHistory(prev => {
+        const newHistory = prev.filter(c => c.id !== id);
+        localStorage.setItem('sunna_chats', JSON.stringify(newHistory));
+        return newHistory;
+      });
+      if (activeChatId === id) {
+        setMessages([]);
+        setActiveChatId(null);
+        router.push('/'); // Thoát khỏi room nếu đang ở room
+      }
     }
   };
 
+  // --- HÀM XỬ LÝ ĐỔI TÊN CHAT RIÊNG ---
+  const startRenameChat = (e: React.MouseEvent, id: string, currentTitle: string) => {
+    e.stopPropagation();
+    setEditingChatId(id);
+    setEditingChatTitle(currentTitle);
+  };
+
+  const saveRenameChat = () => {
+    if (!editingChatId) return;
+    const newTitle = editingChatTitle.trim();
+    if (newTitle) {
+      setChatHistory(prev => {
+        const newHistory = prev.map(c => c.id === editingChatId ? { ...c, title: newTitle } : c);
+        localStorage.setItem('sunna_chats', JSON.stringify(newHistory));
+        return newHistory;
+      });
+    }
+    setEditingChatId(null);
+  };
+
+  const handleRenameChatKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveRenameChat();
+    } else if (e.key === 'Escape') {
+      setEditingChatId(null);
+    }
+  };
   // Xử lý gửi tin nhắn
   const handleSend = async () => {
     if (!input.trim() && !image) return;
@@ -491,24 +527,52 @@ export default function Home() {
               <div className="space-y-1">
                 {todayChats.map(chat => (
                   <div key={chat.id} className="relative group">
-                    <button 
-                      onClick={() => handleSelectChat(chat.id)}
-                      className={`flex items-center gap-3 w-full p-3 rounded-xl transition-colors text-left border ${
-                        activeChatId === chat.id 
-                          ? 'bg-orange-50/50 text-orange-800 border-orange-100/50' 
-                          : 'text-gray-600 hover:bg-gray-50 border-transparent'
-                      }`}
-                    >
-                      <MessageSquare size={18} className={activeChatId === chat.id ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500 transition-colors'} />
-                      <span className="truncate flex-1 text-sm font-medium pr-6">{chat.title}</span>
-                    </button>
-                    {/* Nút xóa thùng rác */}
-                    <button 
-                      onClick={(e) => handleDeleteChat(e, chat.id)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white md:bg-transparent rounded-lg"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {editingChatId === chat.id ? (
+                      <div className="flex items-center gap-2 w-full p-2 rounded-xl border border-blue-300 bg-blue-50 shadow-sm">
+                        <MessageSquare size={16} className="text-blue-500 flex-shrink-0 ml-1" />
+                        <input
+                          type="text"
+                          className="flex-1 text-xs font-medium bg-white border border-blue-200 outline-none rounded p-1 text-gray-800"
+                          value={editingChatTitle}
+                          onChange={(e) => setEditingChatTitle(e.target.value)}
+                          onKeyDown={handleRenameChatKeyDown}
+                          onBlur={saveRenameChat}
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => handleSelectChat(chat.id)}
+                          className={`flex items-center gap-3 w-full p-3 rounded-xl transition-colors text-left border pr-14 ${
+                            activeChatId === chat.id 
+                              ? 'bg-orange-50/50 text-orange-800 border-orange-100/50' 
+                              : 'text-gray-600 hover:bg-gray-50 border-transparent'
+                          }`}
+                        >
+                          <MessageSquare size={18} className={activeChatId === chat.id ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500 transition-colors'} />
+                          <span className="truncate flex-1 text-sm font-medium pr-2">{chat.title}</span>
+                        </button>
+                        
+                        {/* Cụm Nút Action của Chat Cá Nhân */}
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white md:bg-gray-50 md:group-hover:bg-transparent rounded-lg px-1 py-1">
+                          <button 
+                            onClick={(e) => startRenameChat(e, chat.id, chat.title)}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-gray-100 transition-colors"
+                            title="Đổi tên cuộc trò chuyện"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteChat(e, chat.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Xóa cuộc trò chuyện"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -523,24 +587,52 @@ export default function Home() {
               <div className="space-y-1">
                 {olderChats.map(chat => (
                   <div key={chat.id} className="relative group">
-                    <button 
-                      onClick={() => handleSelectChat(chat.id)}
-                      className={`flex items-center gap-3 w-full p-3 rounded-xl transition-colors text-left border ${
-                        activeChatId === chat.id 
-                          ? 'bg-orange-50/50 text-orange-800 border-orange-100/50' 
-                          : 'text-gray-600 hover:bg-gray-50 border-transparent'
-                      }`}
-                    >
-                      <MessageSquare size={18} className={activeChatId === chat.id ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500 transition-colors'} />
-                      <span className="truncate flex-1 text-sm font-medium pr-6">{chat.title}</span>
-                    </button>
-                    {/* Nút xóa thùng rác */}
-                    <button 
-                      onClick={(e) => handleDeleteChat(e, chat.id)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white md:bg-transparent rounded-lg"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {editingChatId === chat.id ? (
+                      <div className="flex items-center gap-2 w-full p-2 rounded-xl border border-blue-300 bg-blue-50 shadow-sm">
+                        <MessageSquare size={16} className="text-blue-500 flex-shrink-0 ml-1" />
+                        <input
+                          type="text"
+                          className="flex-1 text-xs font-medium bg-white border border-blue-200 outline-none rounded p-1 text-gray-800"
+                          value={editingChatTitle}
+                          onChange={(e) => setEditingChatTitle(e.target.value)}
+                          onKeyDown={handleRenameChatKeyDown}
+                          onBlur={saveRenameChat}
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => handleSelectChat(chat.id)}
+                          className={`flex items-center gap-3 w-full p-3 rounded-xl transition-colors text-left border pr-14 ${
+                            activeChatId === chat.id 
+                              ? 'bg-orange-50/50 text-orange-800 border-orange-100/50' 
+                              : 'text-gray-600 hover:bg-gray-50 border-transparent'
+                          }`}
+                        >
+                          <MessageSquare size={18} className={activeChatId === chat.id ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500 transition-colors'} />
+                          <span className="truncate flex-1 text-sm font-medium pr-2">{chat.title}</span>
+                        </button>
+                        
+                        {/* Cụm Nút Action của Chat Cá Nhân */}
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white md:bg-gray-50 md:group-hover:bg-transparent rounded-lg px-1 py-1">
+                          <button 
+                            onClick={(e) => startRenameChat(e, chat.id, chat.title)}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-gray-100 transition-colors"
+                            title="Đổi tên cuộc trò chuyện"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteChat(e, chat.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Xóa cuộc trò chuyện"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
