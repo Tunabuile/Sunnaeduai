@@ -7,6 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { askGemini, generateChatTitle } from './actions';
 import { ArrowUp, Image as ImageIcon, X, Plus, MessageSquare, User, Menu, Trash2 } from 'lucide-react';
+import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
 
 interface Message {
   role: string;
@@ -22,6 +23,7 @@ interface ChatSession {
 }
 
 export default function Home() {
+  const { isSignedIn } = useAuth();
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -329,11 +331,17 @@ export default function Home() {
         </div>
 
         {/* Header & Đăng nhập (Top Right) */}
-        <div className="absolute top-4 right-4 md:top-6 md:right-8 z-10">
-          <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-full font-medium hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all shadow-sm">
-            <User size={18} />
-            <span className="hidden sm:inline">Đăng nhập</span>
-          </button>
+        <div className="absolute top-4 right-4 md:top-6 md:right-8 z-10 flex gap-2">
+          {!isSignedIn ? (
+            <SignInButton mode="modal" signUpFallbackRedirectUrl="/" fallbackRedirectUrl="/">
+              <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-full font-medium hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 transition-all shadow-sm">
+                <User size={18} />
+                <span className="hidden sm:inline">Đăng nhập</span>
+              </button>
+            </SignInButton>
+          ) : (
+            <UserButton />
+          )}
         </div>
 
         {/* Nội dung trung tâm */}
