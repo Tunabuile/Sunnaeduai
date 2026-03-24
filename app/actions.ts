@@ -9,7 +9,7 @@ export async function createRoom(name?: string) {
     .insert([{ name: name || "Phòng học mới" }])
     .select()
     .single();
-  
+
   if (error) {
     console.error("Supabase Error (Create Room):", error);
     throw new Error(error.message || "Lỗi tạo phòng");
@@ -175,6 +175,7 @@ Sau đó có một phần "Đáp án ẩn" bằng cách dùng Markdown spoiler h
     }));
 
     const chat = model.startChat({ history: chatHistory });
+    let responseText = "";
 
     if (imageBase64) {
       const imageData = imageBase64.split(',')[1];
@@ -182,15 +183,19 @@ Sau đó có một phần "Đáp án ẩn" bằng cách dùng Markdown spoiler h
         { text: lastMessage || "Hãy phân tích hình ảnh này." },
         { inlineData: { data: imageData, mimeType: "image/png" } }
       ]);
-      const responseText = result.response.text();
-
-      // Nếu có Room ID, lưu câu trả lời của AI vào Database luôn
-      if (roomId) {
-        await saveMessage(roomId, userId || "system", 'assistant', responseText);
-      }
-
-      return responseText;
+      responseText = result.response.text();
+    } else {
+      // 3. XỬ LÝ KHI CHỈ CÓ VĂN BẢN (KHÔNG CÓ ẢNH)
+      const result = await chat.sendMessage(lastMessage);
+      responseText = result.response.text();
     }
+
+    // Nếu có Room ID, lưu câu trả lời của AI vào Database luôn
+    if (responseText && roomId) {
+      await saveMessage(roomId, userId || "system", 'assistant', responseText);
+    }
+
+    return responseText;
 
   } catch (error) {
     // In lỗi ra terminal VSCode để bạn dễ theo dõi
@@ -205,7 +210,7 @@ export async function generateChatTitle(prompt: string) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(`Hãy tạo 1 tiêu đề thật ngắn gọn (tối đa 5-6 chữ) mang tính tóm tắt cho câu hỏi/yêu cầu sau. KHÔNG dùng dấu ngoặc kép, KHÔNG giải thích, CHỈ in ra tiêu đề: "${prompt}"`);
     return result.response.text().trim().replace(/['"]/g, '');
   } catch (error) {
