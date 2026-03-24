@@ -33,13 +33,6 @@ export async function renameRoom(roomId: string, newName: string) {
 }
 
 export async function getMessages(roomId: string) {
-  const { data, error } = await supabase
-    .from('messages')
-    .update({ room_id: roomId }) // trick to check if room exists or just select
-    .select()
-    .eq('room_id', roomId)
-    .order('created_at', { ascending: true });
-
   const { data: messages, error: selectError } = await supabase
     .from('messages')
     .select('*')
