@@ -5,9 +5,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { askGemini, generateChatTitle } from './actions';
-import { ArrowUp, Image as ImageIcon, X, Plus, MessageSquare, User, Menu, Trash2 } from 'lucide-react';
-import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
+import { askGemini, generateChatTitle, saveMessage, getMessages, createRoom, renameRoom } from './actions';
+import { ArrowUp, Image as ImageIcon, X, Plus, MessageSquare, User, Menu, Trash2, Users, Edit2 } from 'lucide-react';
+import { useAuth, SignInButton, UserButton, useUser } from '@clerk/nextjs';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
   role: string;
@@ -24,6 +26,11 @@ interface ChatSession {
 
 export default function Home() {
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const roomId = searchParams.get('room');
+
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -33,11 +40,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [roomList, setRoomList] = useState<any[]>([]);
+  const [showJoinOptions, setShowJoinOptions] = useState(false);
+  const [joinId, setJoinId] = useState('');
+  
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editingRoomName, setEditingRoomName] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Khôi phục dữ liệu từ LocalStorage khi khởi chạy
+  // Khôi phục dữ liệu từ LocalStorage khi khởi chạy (cho chat cá nhân)
   useEffect(() => {
     const savedChats = localStorage.getItem('sunna_chats');
     if (savedChats) {
@@ -49,6 +62,52 @@ export default function Home() {
       }
     }
   }, []);
+
+  // Sync tin nhắn từ Supabase khi vào phòng (cho chat nhóm)
+  useEffect(() => {
+    if (roomId) {
+      getMessages(roomId).then(msgs => {
+        if (msgs) {
+          setMessages(msgs.map((m: any) => ({ 
+            role: m.role, 
+            content: m.content, 
+            image: m.image_url 
+          })));
+        }
+      }).catch(err => console.error("Lỗi lấy tin nhắn Supabase:", err));
+
+      // Đăng ký Realtime lắng nghe tin nhắn mới
+      const channel = supabase
+        .channel(`room-${roomId}`)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `room_id=eq.${roomId}`
+        }, (payload) => {
+          const newMsg = payload.new as any;
+          // Chỉ thêm nếu tin nhắn đó chưa có trong list (tránh trùng do vừa gửi xong)
+          setMessages(prev => {
+            const isDuplicate = prev.some(m => m.content === newMsg.content && m.role === newMsg.role);
+            if (isDuplicate) return prev;
+            return [...prev, { role: newMsg.role, content: newMsg.content, image: newMsg.image_url }];
+          });
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [roomId]);
+
+  // Lấy danh sách phòng từ Supabase (ví dụ lấy 10 phòng gần nhất)
+  useEffect(() => {
+    supabase.from('rooms').select('*').order('created_at', { ascending: false }).limit(10)
+      .then(({ data }) => {
+        if (data) setRoomList(data);
+      });
+  }, [roomId]);
 
   // Cuộn xuống tin nhắn mới nhất
   const scrollToBottom = () => {
@@ -77,14 +136,75 @@ export default function Home() {
     if(window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
-  // Xem lại cuộc trò chuyện cũ
+  // Xem lại cuộc trò chuyện cũ (Local)
   const handleSelectChat = (id: string) => {
+    router.push('/'); // Thoát khỏi room nếu đang ở room
     const chat = chatHistory.find(c => c.id === id);
     if (chat) {
       setActiveChatId(chat.id);
       setMessages(chat.messages);
     }
     if(window.innerWidth < 768) setIsSidebarOpen(false);
+  };
+
+  // Tạo phòng học chung mới (Supabase)
+  const handleCreateSharedRoom = async () => {
+    try {
+      setLoading(true);
+      const room = await createRoom("Phòng học của " + (user?.firstName || "tôi"));
+      router.push(`/?room=${room.id}`);
+      if(window.innerWidth < 768) setIsSidebarOpen(false);
+    } catch (error) {
+      console.error("Lỗi tạo phòng:", error);
+      alert("Không tạo được phòng chung rồi ông giáo ạ!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Xử lý nút tham gia phòng bằng ID
+  const handleJoinById = () => {
+    if (!joinId.trim()) return;
+    router.push(`/?room=${joinId.trim()}`);
+    setJoinId('');
+    setShowJoinOptions(false);
+    if(window.innerWidth < 768) setIsSidebarOpen(false);
+  };
+
+  const handleSelectRoom = (id: string) => {
+    if (editingRoomId === id) return; // Không chuyển phòng khi đang đổi tên
+    router.push(`/?room=${id}`);
+    if(window.innerWidth < 768) setIsSidebarOpen(false);
+  };
+
+  const startRenameRoom = (e: React.MouseEvent, id: string, currentName: string) => {
+    e.stopPropagation();
+    setEditingRoomId(id);
+    setEditingRoomName(currentName);
+  };
+
+  const saveRenameRoom = async () => {
+    if (!editingRoomId) return;
+    const newName = editingRoomName.trim();
+    const currentName = roomList.find(r => r.id === editingRoomId)?.name || "";
+    
+    if (newName && newName !== currentName) {
+      try {
+        await renameRoom(editingRoomId, newName);
+        setRoomList(prev => prev.map(r => r.id === editingRoomId ? { ...r, name: newName } : r));
+      } catch (err) {
+        console.error("Lỗi đổi tên phòng:", err);
+      }
+    }
+    setEditingRoomId(null);
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveRenameRoom();
+    } else if (e.key === 'Escape') {
+      setEditingRoomId(null);
+    }
   };
 
   // Xóa một cuộc trò chuyện
@@ -151,8 +271,8 @@ export default function Home() {
       return newHistory;
     });
 
-    // --- TỰ ĐỘNG TẠO TIÊU ĐỀ NẾU LÀ CHAT MỚI ---
-    if (isNewChat) {
+    // --- TỰ ĐỘNG TẠO TIÊU ĐỀ NẾU LÀ CHAT MỚI (Local) ---
+    if (isNewChat && !roomId) {
       generateChatTitle(currentInput).then(title => {
         setChatHistory(prev => {
           let newHistory = [...prev];
@@ -166,29 +286,46 @@ export default function Home() {
       }).catch(e => console.error("Lỗi tự động tạo tiêu đề:", e));
     }
 
+    // --- LƯU LÊN SUPABASE NẾU ĐANG Ở TRONG PHÒNG ---
+    if (roomId) {
+      try {
+        await saveMessage(roomId, user?.id || 'anonymous', 'user', currentInput, currentImage || undefined);
+      } catch (err) {
+        console.error("Lỗi lưu tin nhắn lên Supabase:", err);
+      }
+    }
+
     try {
       // Gọi API AI
-      const response = await askGemini(newMessages.map(m => ({role: m.role, content: m.content})), currentImage || undefined);
+      // Pass thêm roomId và userId để AI tự lưu response vào DB
+      const response = await askGemini(
+        newMessages.map(m => ({role: m.role, content: m.content})), 
+        roomId || undefined,
+        user?.id || undefined,
+        currentImage || undefined
+      );
       
-      const assistantMsg: Message = { role: 'assistant', content: response };
+      const assistantMsg: Message = { role: 'assistant', content: response || "Ông giáo ơi, tui bị lỗi chút xíu, thử lại nhé!" };
       const finalMessages = [...newMessages, assistantMsg];
       setMessages(finalMessages);
 
-      // --- CẬP NHẬT LỊCH SỬ KHI AI TRẢ LỜI ---
-      const timeAfterResponse = Date.now();
-      setChatHistory(prev => {
-        let newHistory = [...prev];
-        const idx = newHistory.findIndex(c => c.id === currentSessionId);
-        if (idx !== -1) {
-          newHistory[idx] = { ...newHistory[idx], messages: finalMessages, updatedAt: timeAfterResponse };
-          if (idx !== 0) {
-            const [item] = newHistory.splice(idx, 1);
-            newHistory.unshift(item);
+      // --- CẬP NHẬT LỊCH SỬ KHI AI TRẢ LỜI (Local) ---
+      if (!roomId) {
+        const timeAfterResponse = Date.now();
+        setChatHistory(prev => {
+          let newHistory = [...prev];
+          const idx = newHistory.findIndex(c => c.id === currentSessionId);
+          if (idx !== -1) {
+            newHistory[idx] = { ...newHistory[idx], messages: finalMessages, updatedAt: timeAfterResponse };
+            if (idx !== 0) {
+              const [item] = newHistory.splice(idx, 1);
+              newHistory.unshift(item);
+            }
           }
-        }
-        localStorage.setItem('sunna_chats', JSON.stringify(newHistory));
-        return newHistory;
-      });
+          localStorage.setItem('sunna_chats', JSON.stringify(newHistory));
+          return newHistory;
+        });
+      }
 
     } catch (error) {
       console.error("Lỗi khi gọi API:", error);
@@ -234,18 +371,118 @@ export default function Home() {
         transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-4 border-b border-gray-100 pt-6">
+        <div className="p-4 border-b border-gray-100 pt-6 space-y-2">
           <button 
             onClick={handleNewChat}
-            className="flex items-center gap-2 w-full px-4 py-3 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-100 transition-all font-semibold shadow-sm"
+            className="flex items-center gap-2 w-full px-4 py-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all font-semibold shadow-sm text-sm"
           >
-            <Plus size={20} strokeWidth={2.5} />
-            Đoạn chat mới
+            <Plus size={18} />
+            Chat riêng mới
           </button>
+          
+          <button 
+            onClick={() => setShowJoinOptions(!showJoinOptions)}
+            className="flex items-center gap-2 w-full px-4 py-3 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-100 transition-all font-semibold shadow-sm text-sm"
+          >
+            <Users size={18} />
+            Tham gia phòng học chung
+          </button>
+
+          {/* Khung tuỳ chọn tham gia / tạo phòng */}
+          {showJoinOptions && (
+            <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-3 mt-2 shadow-inner">
+              <button 
+                onClick={handleCreateSharedRoom}
+                className="w-full px-3 py-2 bg-white text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors text-sm font-medium shadow-sm"
+              >
+                + Tạo phòng học mới
+              </button>
+              
+              <div className="relative flex items-center">
+                <div className="absolute inset-y-0 left-0 flex items-center mx-3 pointer-events-none">
+                  <span className="text-gray-400 text-xs">ID</span>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Nhập mã phòng (ID)..." 
+                  className="w-full text-sm pl-8 pr-16 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all"
+                  value={joinId}
+                  onChange={(e) => setJoinId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleJoinById();
+                  }}
+                />
+                <button 
+                  onClick={handleJoinById}
+                  disabled={!joinId.trim()}
+                  className="absolute right-1 px-3 py-1 bg-orange-500 text-white text-xs rounded-md hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                >
+                  Vào
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-20">
           
+          {roomId && (
+            <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100 mb-4 animate-pulse">
+               <p className="text-xs font-bold text-orange-600 mb-1">🔴 ĐANG TRONG PHÒNG CHUNG</p>
+               <p className="text-[10px] text-gray-500 truncate">ID: {roomId}</p>
+            </div>
+          )}
+
+          {roomList.length > 0 && (
+            <div>
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">
+                Phòng học chung
+              </div>
+              <div className="space-y-1 mb-6">
+                {roomList.map(room => (
+                  <div key={room.id} className="relative group">
+                    {editingRoomId === room.id ? (
+                      <div className="flex items-center gap-2 w-full p-2 rounded-xl border border-orange-300 bg-orange-50 shadow-sm">
+                        <Users size={16} className="text-orange-500 flex-shrink-0 ml-1" />
+                        <input
+                          type="text"
+                          className="flex-1 text-xs font-medium bg-white border border-orange-200 outline-none rounded p-1 text-gray-800"
+                          value={editingRoomName}
+                          onChange={(e) => setEditingRoomName(e.target.value)}
+                          onKeyDown={handleRenameKeyDown}
+                          onBlur={saveRenameRoom}
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => handleSelectRoom(room.id)}
+                          className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-colors text-left border pr-8 ${
+                            roomId === room.id 
+                              ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                              : 'text-gray-600 hover:bg-gray-50 border-transparent'
+                          }`}
+                        >
+                          <Users size={16} className={roomId === room.id ? 'text-orange-600' : 'text-gray-400 group-hover:text-orange-600 transition-colors'} />
+                          <span className="truncate flex-1 text-xs font-medium">{room.name || "Phòng chung"}</span>
+                        </button>
+                        {/* Nút Đổi tên phòng */}
+                        <button 
+                          onClick={(e) => startRenameRoom(e, room.id, room.name || "Phòng chung")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white md:bg-transparent rounded-lg"
+                          title="Đổi tên phòng"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {todayChats.length > 0 && (
             <div>
               <div className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">

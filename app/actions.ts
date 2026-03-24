@@ -1,8 +1,79 @@
 'use server';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { supabase } from "@/lib/supabase";
 
-export async function askGemini(history: { role: string; content: string }[], imageBase64?: string) {
+export async function createRoom(name?: string) {
+  const { data, error } = await supabase
+    .from('rooms')
+    .insert([{ name: name || "Phòng học mới" }])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error("Supabase Error (Create Room):", error);
+    throw new Error(error.message || "Lỗi tạo phòng");
+  }
+  return data;
+}
+
+export async function renameRoom(roomId: string, newName: string) {
+  const { data, error } = await supabase
+    .from('rooms')
+    .update({ name: newName })
+    .eq('id', roomId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Supabase Error (Rename Room):", error);
+    throw new Error(error.message || "Lỗi đổi tên phòng");
+  }
+  return data;
+}
+
+export async function getMessages(roomId: string) {
+  const { data, error } = await supabase
+    .from('messages')
+    .update({ room_id: roomId }) // trick to check if room exists or just select
+    .select()
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+
+  const { data: messages, error: selectError } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+
+  if (selectError) {
+    console.error("Supabase Error (Get Messages):", selectError);
+    throw new Error(selectError.message || "Lỗi lấy tin nhắn");
+  }
+  return messages;
+}
+
+export async function saveMessage(roomId: string, userId: string, role: 'user' | 'assistant', content: string, imageUrl?: string) {
+  const { data, error } = await supabase
+    .from('messages')
+    .insert([{
+      room_id: roomId,
+      user_id: userId,
+      role,
+      content,
+      image_url: imageUrl
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Supabase Error (Save Message):", error);
+    throw new Error(error.message || "Lỗi lưu tin nhắn");
+  }
+  return data;
+}
+
+export async function askGemini(history: { role: string; content: string }[], roomId?: string, userId?: string, imageBase64?: string) {
   // 1. Lấy và kiểm tra API Key ĐẦU TIÊN
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -111,10 +182,14 @@ Sau đó có một phần "Đáp án ẩn" bằng cách dùng Markdown spoiler h
         { text: lastMessage || "Hãy phân tích hình ảnh này." },
         { inlineData: { data: imageData, mimeType: "image/png" } }
       ]);
-      return result.response.text();
-    } else {
-      const result = await chat.sendMessage(lastMessage);
-      return result.response.text();
+      const responseText = result.response.text();
+
+      // Nếu có Room ID, lưu câu trả lời của AI vào Database luôn
+      if (roomId) {
+        await saveMessage(roomId, userId || "system", 'assistant', responseText);
+      }
+
+      return responseText;
     }
 
   } catch (error) {
