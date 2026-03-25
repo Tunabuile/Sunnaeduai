@@ -120,9 +120,11 @@ function ChatContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Chỉ scroll khi chọn chat cũ hoặc vào phòng mới, không scroll theo stream
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    userScrolledUp.current = false;
+    scrollToBottom(true);
+  }, [activeChatId, roomId]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -358,6 +360,8 @@ function ChatContent() {
 
       // Thêm tin nhắn AI rỗng trước, rồi cập nhật dần theo stream
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      // Scroll xuống khi AI bắt đầu trả lời
+      setTimeout(() => scrollToBottom(true), 50);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -368,6 +372,8 @@ function ChatContent() {
           updated[updated.length - 1] = { role: 'assistant', content: fullText };
           return updated;
         });
+        // Scroll theo stream nếu user chưa scroll lên
+        scrollToBottom();
       }
 
       const finalMessages = [...newMessages, { role: 'assistant', content: fullText || "Ông giáo ơi, tui bị lỗi chút xíu, thử lại nhé!" }];
