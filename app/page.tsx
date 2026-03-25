@@ -675,7 +675,7 @@ function ChatContent() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col relative h-full">
+      <main className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
         
         {/* Nút Hamburger cho Mobile */}
         <div className="md:hidden absolute top-4 left-4 z-10">
@@ -702,7 +702,7 @@ function ChatContent() {
         </div>
 
         {/* Nội dung trung tâm */}
-        <div className="flex-1 flex flex-col items-center p-4 md:p-10 w-full overflow-hidden">
+        <div className="flex-1 flex flex-col items-center p-4 md:p-10 w-full min-h-0">
           
           {/* LOGO */}
           <div className="flex flex-col items-center mb-6 transition-all duration-500 hover:scale-105 mt-8 md:mt-2">
@@ -717,7 +717,7 @@ function ChatContent() {
           </div>
 
           {/* KHU VỰC CHAT */}
-          <div ref={chatContainerRef} className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4">
+          <div ref={chatContainerRef} className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4 min-h-0">
             {messages.length === 0 && (
               <div className="text-center text-gray-400 mt-20 transform transition-all hover:scale-105">
                 <p className="text-xl font-medium text-slate-500">Hôm nay Sunna có thể giúp gì cho bạn?</p>
