@@ -53,6 +53,7 @@ function ChatContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUp = useRef(false);
 
   // Khôi phục dữ liệu từ LocalStorage khi khởi chạy (cho chat cá nhân)
   useEffect(() => {
@@ -113,14 +114,10 @@ function ChatContent() {
       });
   }, [roomId]);
 
-  // Cuộn xuống tin nhắn mới nhất - chỉ khi đang ở gần cuối
+  // Cuộn xuống tin nhắn mới nhất - chỉ khi user chưa scroll lên
   const scrollToBottom = (force = false) => {
-    const container = chatContainerRef.current;
-    if (!container) return;
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    if (force || distanceFromBottom < 100) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    if (!force && userScrolledUp.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -276,6 +273,7 @@ function ChatContent() {
     setInput('');
     setImage(null);
     setLoading(true);
+    userScrolledUp.current = false;
     // Force scroll xuống khi user gửi tin
     setTimeout(() => scrollToBottom(true), 50);
 
@@ -675,7 +673,7 @@ function ChatContent() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col relative overflow-hidden min-h-0">
         
         {/* Nút Hamburger cho Mobile */}
         <div className="md:hidden absolute top-4 left-4 z-10">
@@ -702,10 +700,11 @@ function ChatContent() {
         </div>
 
         {/* Nội dung trung tâm */}
-        <div className="flex-1 flex flex-col items-center p-4 md:p-10 w-full min-h-0">
+        <div className="flex-1 flex flex-col items-center p-4 md:p-10 w-full min-h-0 overflow-hidden">
           
-          {/* LOGO */}
-          <div className="flex flex-col items-center mb-6 transition-all duration-500 hover:scale-105 mt-8 md:mt-2">
+          {/* LOGO - ẩn khi có tin nhắn để tối đa không gian chat */}
+          {messages.length === 0 && (
+          <div className="flex flex-col items-center mb-6 transition-all duration-500 hover:scale-105 mt-8 md:mt-2 flex-shrink-0">
             <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
                <svg viewBox="0 0 24 24" className="w-10 h-10 text-orange-500 fill-current">
                   <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3zm0-9V3M12 21v-3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M3 12h3M18 12h3M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -715,9 +714,18 @@ function ChatContent() {
               Sunna Edu <span className="text-orange-500">AI</span>
             </h1>
           </div>
+          )}
 
           {/* KHU VỰC CHAT */}
-          <div ref={chatContainerRef} className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4 min-h-0">
+          <div
+            ref={chatContainerRef}
+            onScroll={() => {
+              const el = chatContainerRef.current;
+              if (!el) return;
+              const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+              userScrolledUp.current = !atBottom;
+            }}
+            className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4 min-h-0">
             {messages.length === 0 && (
               <div className="text-center text-gray-400 mt-20 transform transition-all hover:scale-105">
                 <p className="text-xl font-medium text-slate-500">Hôm nay Sunna có thể giúp gì cho bạn?</p>
@@ -734,7 +742,17 @@ function ChatContent() {
                     {msg.role === 'user' ? '👤 BẠN' : '📋 SUNNA AI'}
                   </h2>
                   <div className="prose prose-slate max-w-none text-[16px] leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={{
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline hover:text-blue-700">
+                            {children}
+                          </a>
+                        )
+                      }}
+                    >
                       {msg.content}
                     </ReactMarkdown>
                   </div>
