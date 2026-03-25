@@ -52,6 +52,7 @@ function ChatContent() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Khôi phục dữ liệu từ LocalStorage khi khởi chạy (cho chat cá nhân)
   useEffect(() => {
@@ -112,9 +113,14 @@ function ChatContent() {
       });
   }, [roomId]);
 
-  // Cuộn xuống tin nhắn mới nhất
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Cuộn xuống tin nhắn mới nhất - chỉ khi đang ở gần cuối
+  const scrollToBottom = (force = false) => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (force || distanceFromBottom < 100) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
@@ -270,6 +276,8 @@ function ChatContent() {
     setInput('');
     setImage(null);
     setLoading(true);
+    // Force scroll xuống khi user gửi tin
+    setTimeout(() => scrollToBottom(true), 50);
 
     const now = Date.now();
     let currentSessionId = activeChatId;
@@ -709,7 +717,7 @@ function ChatContent() {
           </div>
 
           {/* KHU VỰC CHAT */}
-          <div className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4">
+          <div ref={chatContainerRef} className="flex-1 w-full max-w-3xl overflow-y-auto px-2 space-y-6 custom-scrollbar mb-4">
             {messages.length === 0 && (
               <div className="text-center text-gray-400 mt-20 transform transition-all hover:scale-105">
                 <p className="text-xl font-medium text-slate-500">Hôm nay Sunna có thể giúp gì cho bạn?</p>
