@@ -203,7 +203,7 @@ export async function generateChatTitle(prompt: string) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(`Hãy tạo 1 tiêu đề thật ngắn gọn (tối đa 5-6 chữ) mang tính tóm tắt cho câu hỏi/yêu cầu sau. KHÔNG dùng dấu ngoặc kép, KHÔNG giải thích, CHỈ in ra tiêu đề: "${prompt}"`);
     return result.response.text().trim().replace(/['"]/g, '');
   } catch (error) {
