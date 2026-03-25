@@ -361,7 +361,7 @@ function ChatContent() {
       // Thêm tin nhắn AI rỗng trước, rồi cập nhật dần theo stream
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
       // Scroll xuống khi AI bắt đầu trả lời
-      setTimeout(() => scrollToBottom(true), 50);
+      setTimeout(() => scrollToBottom(true), 150);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -373,7 +373,7 @@ function ChatContent() {
           return updated;
         });
         // Scroll theo stream nếu user chưa scroll lên
-        scrollToBottom();
+        setTimeout(() => scrollToBottom(), 50);
       }
 
       const finalMessages = [...newMessages, { role: 'assistant', content: fullText || "Ông giáo ơi, tui bị lỗi chút xíu, thử lại nhé!" }];
