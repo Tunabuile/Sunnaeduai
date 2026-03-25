@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { askGemini, generateChatTitle, saveMessage, getMessages, createRoom, renameRoom } from './actions';
+import { generateChatTitle, saveMessage, getMessages, createRoom, renameRoom } from './actions';
 import { ArrowUp, Image as ImageIcon, X, Plus, MessageSquare, User, Menu, Trash2, Users, Edit2 } from 'lucide-react';
 import { useAuth, SignInButton, UserButton, useUser } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -332,18 +332,39 @@ function ChatContent() {
     }
 
     try {
-      // Gọi API AI
-      // Pass thêm roomId và userId để AI tự lưu response vào DB
-      const response = await askGemini(
-        newMessages.map(m => ({role: m.role, content: m.content})), 
-        roomId || undefined,
-        user?.id || undefined,
-        currentImage || undefined
-      );
-      
-      const assistantMsg: Message = { role: 'assistant', content: response || "Ông giáo ơi, tui bị lỗi chút xíu, thử lại nhé!" };
-      const finalMessages = [...newMessages, assistantMsg];
-      setMessages(finalMessages);
+      // Gọi streaming API thay vì server action để tránh timeout Vercel
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          history: newMessages.map(m => ({ role: m.role, content: m.content })),
+          roomId: roomId || null,
+          userId: user?.id || null,
+          imageBase64: currentImage || null,
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error('Lỗi kết nối API');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      // Thêm tin nhắn AI rỗng trước, rồi cập nhật dần theo stream
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: fullText };
+          return updated;
+        });
+      }
+
+      const finalMessages = [...newMessages, { role: 'assistant', content: fullText || "Ông giáo ơi, tui bị lỗi chút xíu, thử lại nhé!" }];
 
       // --- CẬP NHẬT LỊCH SỬ KHI AI TRẢ LỜI (Local) ---
       if (!roomId) {
@@ -369,7 +390,6 @@ function ChatContent() {
       const failedMessages = [...newMessages, errorMsg];
       setMessages(failedMessages);
       
-      // --- LƯU LẠI LƯỢT TRẢ LỜI LỖI ĐỂ TRÁNH MẤT LUỒNG DỮ LIỆU ---
       setChatHistory(prev => {
         let newHistory = [...prev];
         const idx = newHistory.findIndex(c => c.id === currentSessionId);
