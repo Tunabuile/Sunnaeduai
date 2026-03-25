@@ -711,10 +711,8 @@ function ChatContent() {
           {/* LOGO - ẩn khi có tin nhắn để tối đa không gian chat */}
           {messages.length === 0 && (
           <div className="flex flex-col items-center mb-6 transition-all duration-500 hover:scale-105 mt-8 md:mt-2 flex-shrink-0">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-3 shadow-inner">
-               <svg viewBox="0 0 24 24" className="w-10 h-10 text-orange-500 fill-current">
-                  <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3zm0-9V3M12 21v-3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M3 12h3M18 12h3M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-               </svg>
+            <div className="w-20 h-20 flex items-center justify-center mb-3">
+              <img src="/logo.png" alt="Sunna Edu Logo" className="w-full h-full object-contain drop-shadow-md" style={{ filter: 'hue-rotate(30deg) saturate(2) brightness(1.1)' }} />
             </div>
             <h1 className="text-4xl font-extrabold text-[#2c3e50] tracking-tight text-center">
               Sunna Edu <span className="text-orange-500">AI</span>
