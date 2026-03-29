@@ -3,10 +3,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/lib/supabase";
 
-export async function createRoom(name?: string) {
+export async function createRoom(name?: string, userId?: string) {
   const { data, error } = await supabase
     .from('rooms')
-    .insert([{ name: name || "Phòng học mới" }])
+    .insert([{ name: name || "Phòng học mới", created_by: userId || null, is_private: true }])
     .select()
     .single();
 
@@ -15,6 +15,18 @@ export async function createRoom(name?: string) {
     throw new Error(error.message || "Lỗi tạo phòng");
   }
   return data;
+}
+
+export async function deleteRoom(roomId: string) {
+  const { error } = await supabase
+    .from('rooms')
+    .delete()
+    .eq('id', roomId);
+
+  if (error) {
+    console.error("Supabase Error (Delete Room):", error);
+    throw new Error(error.message || "Lỗi xóa phòng");
+  }
 }
 
 export async function renameRoom(roomId: string, newName: string) {

@@ -5,8 +5,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { generateChatTitle, saveMessage, getMessages, createRoom, renameRoom } from './actions';
-import { ArrowUp, Image as ImageIcon, X, Plus, MessageSquare, User, Menu, Trash2, Users, Edit2 } from 'lucide-react';
+import { generateChatTitle, saveMessage, getMessages, createRoom, renameRoom, deleteRoom } from './actions';
+import { ArrowUp, Image as ImageIcon, X, Plus, MessageSquare, User, Menu, Trash2, Users, Edit2, Lock } from 'lucide-react';
 import { useAuth, SignInButton, UserButton, useUser } from '@clerk/nextjs';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -159,7 +159,7 @@ function ChatContent() {
   const handleCreateSharedRoom = async () => {
     try {
       setLoading(true);
-      const room = await createRoom("Phòng học của " + (user?.firstName || "tôi"));
+      const room = await createRoom("Phòng học của " + (user?.firstName || "tôi"), user?.id);
       router.push(`/?room=${room.id}`);
       if(window.innerWidth < 768) setIsSidebarOpen(false);
     } catch (error) {
@@ -180,9 +180,21 @@ function ChatContent() {
   };
 
   const handleSelectRoom = (id: string) => {
-    if (editingRoomId === id) return; // Không chuyển phòng khi đang đổi tên
+    if (editingRoomId === id) return;
     router.push(`/?room=${id}`);
     if(window.innerWidth < 768) setIsSidebarOpen(false);
+  };
+
+  const handleDeleteRoom = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Xóa phòng này? Toàn bộ tin nhắn sẽ mất.")) return;
+    try {
+      await deleteRoom(id);
+      setRoomList(prev => prev.filter(r => r.id !== id));
+      if (roomId === id) router.push('/');
+    } catch (err) {
+      console.error("Lỗi xóa phòng:", err);
+    }
   };
 
   const startRenameRoom = (e: React.MouseEvent, id: string, currentName: string) => {
@@ -526,7 +538,7 @@ function ChatContent() {
                       <>
                         <button 
                           onClick={() => handleSelectRoom(room.id)}
-                          className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-colors text-left border pr-8 ${
+                          className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-colors text-left border pr-16 ${
                             roomId === room.id 
                               ? 'bg-orange-100 text-orange-800 border-orange-200' 
                               : 'text-gray-600 hover:bg-gray-50 border-transparent'
@@ -534,15 +546,27 @@ function ChatContent() {
                         >
                           <Users size={16} className={roomId === room.id ? 'text-orange-600' : 'text-gray-400 group-hover:text-orange-600 transition-colors'} />
                           <span className="truncate flex-1 text-xs font-medium">{room.name || "Phòng chung"}</span>
+                          {room.is_private && <Lock size={11} className="text-gray-300 flex-shrink-0" />}
                         </button>
-                        {/* Nút Đổi tên phòng */}
-                        <button 
-                          onClick={(e) => startRenameRoom(e, room.id, room.name || "Phòng chung")}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white md:bg-transparent rounded-lg"
-                          title="Đổi tên phòng"
-                        >
-                          <Edit2 size={14} />
-                        </button>
+                        {/* Chỉ hiện nút action cho người tạo phòng */}
+                        {room.created_by === user?.id && (
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={(e) => startRenameRoom(e, room.id, room.name || "Phòng chung")}
+                              className="p-1.5 text-gray-400 hover:text-blue-500 bg-white rounded-lg"
+                              title="Đổi tên phòng"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button 
+                              onClick={(e) => handleDeleteRoom(e, room.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 bg-white rounded-lg"
+                              title="Xóa phòng"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
